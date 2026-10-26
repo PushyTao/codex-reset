@@ -1,0 +1,26 @@
+services:
+  reset:
+    environment:
+      APP_URL: http://127.0.0.1:3100
+      NODE_EXTRA_CA_CERTS: /fixtures/certs/ca.pem
+    volumes:
+      - ./tests/docker:/fixtures/scripts:ro
+      - ./artifacts/docker-validation/certs:/fixtures/certs:ro
+    depends_on:
+      smtp:
+        condition: service_healthy
+  smtp:
+    image: codex-reset-validation-reset
+    command: [node, /fixtures/scripts/smtp-server.js]
+    volumes:
+      - ./tests/docker:/fixtures/scripts:ro
+      - ./artifacts/docker-validation/certs:/fixtures/certs:ro
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8025/messages').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

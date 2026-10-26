@@ -1,0 +1,19 @@
+{
+  "name": "codex-reset-watch",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --use-env-proxy server/index.js",
+    "dev": "node --env-file-if-exists=.env --use-env-proxy --watch server/index.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nodemailer": "10.2.1"
+  }
+}

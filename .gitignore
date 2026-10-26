@@ -1,0 +1,9 @@
+node_modules/
+data/
+.env
+*.log
+reference.html
+source-reference.html
+api-reference.json
+source-api.json
+artifacts/

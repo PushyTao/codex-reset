@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="追踪 Codex 额度重置、社区观测与历史记录。独立社区项目，数据来自 Codex Resets。">
+  <meta name="theme-color" content="#f3f0e8">
+  <title>Codex Reset — 追踪每一次重新开始</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Codex Reset 首页"><span class="brand-mark" aria-hidden="true">✳</span><span>RESET<span class="brand-sub">/ CODEX</span></span></a>
+      <nav class="main-nav" aria-label="主导航"><a href="#history">重置记录</a><a href="#announcements">公告动态</a><a href="#about">关于</a></nav>
+      <label class="timezone"><span class="sr-only">显示时区</span><span aria-hidden="true">◷</span><select id="timezone"><option value="Asia/Shanghai">北京时间 · UTC+8</option><option value="America/Los_Angeles">洛杉矶时间</option><option value="local">本地时间</option></select></label>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="live-dot"></span> CODEX RESET TRACKER <span class="edition">独立社区观测站</span></div>
+          <h1 id="hero-title">每一次重置，<br>都是新开始<span class="green">。</span></h1>
+          <p class="hero-description">记录 Codex 额度的每次刷新。少一点等待，<br class="desktop-break">多一点创造。让灵感，继续运行。</p>
+          <a class="button button-dark" href="#history">查看重置记录 <span aria-hidden="true">↗</span></a>
+          <div class="hero-caption"><span class="tiny-cross" aria-hidden="true">+</span> MORE TOKENS. MORE POSSIBILITIES.</div>
+        </div>
+        <div class="status-stack">
+          <article class="reset-card" aria-labelledby="latest-heading">
+            <div class="card-kicker"><span><span class="status-square"></span> 最近一次重置</span><span id="latest-kind" class="tag tag-light">正在连接</span></div>
+            <h2 id="latest-heading"><span id="latest-relative">读取记录中</span><span class="reset-card-arrow" aria-hidden="true">↗</span></h2>
+            <p id="latest-exact" class="mono status-exact">等待数据源响应</p>
+            <div class="card-divider"></div>
+            <div class="reset-card-bottom"><span id="latest-source">公开社区数据</span><a id="latest-link" href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">查看来源 ↗</a></div>
+          </article>
+          <article class="next-card"><div><span class="small-label">下一次重置</span><strong>好事发生前，保持创造。</strong><p id="next-reset">重置没有固定周期，暂不提供时间预测。</p></div><span class="orbital" aria-hidden="true">↻</span></article>
+        </div>
+      </section>
+      <div class="source-strip" role="status"><div><span class="live-dot" id="source-dot"></span><span id="source-status">正在读取公开数据…</span></div><button class="text-button" id="refresh-button" type="button">刷新数据 <span aria-hidden="true">↻</span></button></div>
+      <section class="history-section" id="history" aria-labelledby="history-title">
+        <div class="section-heading"><div><span class="section-number">01 / HISTORY</span><h2 id="history-title">每次刷新，都有迹可循<span class="green">。</span></h2></div><span class="section-note">最近 90 天 · 点击日期查看记录</span></div>
+        <div class="history-board">
+          <div class="calendar-header"><span class="mono">RESET ACTIVITY</span><div class="legend"><span><i class="legend-box regular"></i>常规重置</span><span><i class="legend-box banked"></i>备用额度</span><span><i class="legend-box"></i>无记录</span></div></div>
+          <div class="calendar-scroll"><div id="calendar" class="calendar" aria-label="最近 90 天重置记录"></div></div>
+          <div class="calendar-footer"><span id="calendar-range">—</span><span>每个格子，是一天的可能。</span></div>
+        </div>
+        <div class="stats-grid"><article><span class="small-label">近 90 天重置记录</span><div><strong id="stat-total">—</strong><span>次</span></div><p>以公开来源实际记录为准</p></article><article><span class="small-label">其中备用额度</span><div><strong id="stat-banked">—</strong><span>次</span></div><p>Banked 备用额度重置</p></article><article><span class="small-label">平均记录间隔</span><div><strong id="stat-average">—</strong><span id="stat-average-unit">天</span></div><p>历史间隔，不代表下次重置时间</p></article></div>
+      </section>
+      <section class="announcements-section" id="announcements" aria-labelledby="announcements-title">
+        <div class="section-heading"><div><span class="section-number">02 / UPDATES</span><h2 id="announcements-title">重置动态</h2></div><a class="small-link" href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">数据来自 Codex Resets ↗</a></div>
+        <div class="feed-controls"><div class="filter-buttons" role="group" aria-label="重置类型筛选"><button type="button" class="filter active" data-kind="all" aria-pressed="true">全部记录</button><button type="button" class="filter" data-kind="regular" aria-pressed="false">常规重置</button><button type="button" class="filter" data-kind="banked" aria-pressed="false">备用额度</button></div><label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">搜索动态</span><input id="search" type="search" placeholder="搜索动态…" maxlength="200"></label></div>
+        <div id="date-filter" class="date-filter" hidden><span></span><button type="button" class="text-button" id="clear-date">清除日期 ×</button></div>
+        <div id="feed" class="feed" aria-live="polite"><div class="empty-state">正在加载重置动态…</div></div>
+        <button id="load-more" type="button" class="button button-outline load-more" hidden>查看更多记录 <span aria-hidden="true">↓</span></button>
+      </section>
+      <section class="about-section" id="about"><div class="about-mark" aria-hidden="true">✳</div><div><span class="section-number">A LITTLE CONTEXT</span><h2>把等待的时间，留给好想法。</h2><p>这里是一个独立的 Codex 额度重置追踪站。我们整理来自 <a href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">Codex Resets</a> 的公开记录，区分社区观测与原帖公告，帮助你了解重置动态。记录仅供参考，实际额度请以你的 Codex 账户为准。</p><p class="about-disclaimer">本项目与 OpenAI 无隶属关系。历史重置不构成未来重置承诺。</p></div></section>
+    </main>
+    <footer class="site-footer"><a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true">✳</span><span>RESET<span class="brand-sub">/ CODEX</span></span></a><span>为每一个创造者，记录重新开始。</span><a href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">SOURCE: CODEX RESETS ↗</a></footer>
+  </div>
+</body>
+</html>
