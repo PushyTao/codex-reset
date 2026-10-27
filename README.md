@@ -27,38 +27,136 @@ npm start
 
 ## Docker 部署
 
+### 服务器首次部署：从创建目录到启动
+
+服务器需要安装 Docker Engine 和 Docker Compose 插件，并能执行 `docker compose version`。镜像支持 Linux amd64，来自 [pushytao/codex-reset-watch](https://hub.docker.com/r/pushytao/codex-reset-watch)，部署文件固定使用 `1.0.0`。
+
+下面的命令可以在 Linux 服务器上直接执行：创建部署目录和数据目录，写入完整配置，拉取镜像并启动。无需安装 Node.js、下载源码或创建 `.env` 文件。已有旧数据时，先完成下方“从旧命名数据卷迁移”，再启动。
+
 ```sh
-cp .env.example .env
-# 按需编辑 .env
-docker compose up -d --build
-docker compose logs -f reset
+# 创建独立的部署目录，保存 docker-compose.yml
+mkdir -p "$HOME/codex-reset"
+cd "$HOME/codex-reset" || exit 1
+
+# 创建服务器数据目录；镜像以 UID/GID 1000 运行
+sudo mkdir -p /data/codex-reset
+sudo chown 1000:1000 /data/codex-reset
+sudo chmod 700 /data/codex-reset
+
+# 写入完整的 Compose 配置
+cat > docker-compose.yml <<'YAML'
+name: codex-reset
+
+services:
+  reset:
+    image: pushytao/codex-reset-watch:1.0.0
+    restart: unless-stopped
+    init: true
+    ports:
+      - "3000:3000"
+    environment:
+      SECURE_COOKIE: "false"
+      TRUST_PROXY: "0"
+      NETWORK_FAMILY: "4"
+    volumes:
+      - /data/codex-reset:/app/data
+    stop_grace_period: 90s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+YAML
+
+# 检查配置、拉取镜像、后台启动并查看状态
+docker compose config --quiet
+docker compose pull
+docker compose up -d
+docker compose ps
 ```
 
-首次密码（仅未配置 `ADMIN_PASSWORD` 时）：
+也可以把仓库中的 [docker-compose.yml](docker-compose.yml) 上传到上述部署目录，替代 `cat` 写入配置这一步。部署目录只放这一份 Compose 文件：仓库同时包含用于源码构建的 `compose.yaml`，Docker 会优先读取它；如果直接在源码仓库内使用预构建镜像，每条命令都需显式加上 `-f docker-compose.yml`。
+
+首页：`http://服务器IP:3000`；管理后台：`http://服务器IP:3000/admin`。服务器防火墙和云平台安全组需允许 TCP 3000。后台首次启动会自动生成密码，在部署目录读取：
 
 ```sh
 docker compose exec reset cat /app/data/admin-password.txt
 ```
 
-默认宿主机映射 `127.0.0.1:3000`，适合通过 Nginx / Caddy 转发 HTTPS。数据库、密钥和初始密码都存放在 `reset_data` 命名数据卷中。仅运行一个副本；不要同时启动多个实例共享数据卷。
+服务器 `/data/codex-reset` 对应容器内 `/app/data`，其中包含 `reset.sqlite`、`secret.key` 和 `admin-password.txt`。管理员密码、收件邮箱、SMTP 配置和历史记录都会保留。仅运行一个应用实例访问这份数据。
 
-如果需要直接通过服务器 IP 访问，在 `.env` 增加 `BIND_ADDRESS=0.0.0.0`，并设置 `APP_URL=http://你的服务器IP:3000`、`SECURE_COOKIE=false`、`TRUST_PROXY=0`。通过服务器防火墙控制开放范围。对公网正式使用推荐 HTTPS。
+### 后续启动、停止与日志
 
-使用域名和 HTTPS 反向代理时：
+在同一个部署目录执行：
 
-```dotenv
-APP_URL=https://reset.example.com
-SECURE_COOKIE=true
-TRUST_PROXY=1
+```sh
+cd "$HOME/codex-reset" || exit 1
+
+# 后台启动；配置变更后也使用这条命令
+docker compose up -d
+
+# 查看最近日志；Ctrl+C 只退出日志查看
+docker compose logs --tail 100 -f reset
 ```
 
-`APP_URL` 必须和浏览器地址的协议、域名、端口一致，否则后台写入会被拒绝。`TRUST_PROXY=1` 仅适用于应用前只有一层可信反向代理的部署；应用端口应只允许代理连接。Caddy 示例：
+停止并删除容器：
+
+```sh
+docker compose down
+```
+
+`down` 保留服务器 `/data/codex-reset` 中的文件；再次 `up -d` 会继续使用原数据。若只想停止容器而不删除，可使用 `docker compose stop`，之后用 `docker compose start` 启动。
+
+### 从旧命名数据卷迁移
+
+此前的 `docker run` 命令和旧版 Compose 使用 `codex-reset-data` 命名卷，切换到服务器目录不会自动复制数据。先在旧部署目录执行 `docker compose down`，不添加 `-v`。如果原来使用 `docker run --name codex-reset`，则执行 `docker stop codex-reset`。停止所有访问旧数据的实例后，在同一服务器、同一个 shell 中执行：
+
+```sh
+sudo mkdir -p /data/codex-reset
+test -z "$(sudo ls -A /data/codex-reset)" || { echo '目标目录非空，请先确认已有数据。'; exit 1; }
+OLD_RESET_DATA="$(docker volume inspect codex-reset-data --format '{{.Mountpoint}}')" || exit 1
+test -n "$OLD_RESET_DATA" || exit 1
+sudo test -f "$OLD_RESET_DATA/reset.sqlite" || { echo '旧数据卷中未找到数据库，停止迁移。'; exit 1; }
+sudo cp -a "$OLD_RESET_DATA/." /data/codex-reset/ || exit 1
+sudo chown -R 1000:1000 /data/codex-reset
+sudo chmod 700 /data/codex-reset
+```
+
+随后执行本节的部署命令，用原来的后台密码登录，核对历史、邮箱和 SMTP 设置。完整复制目录才能保留 SQLite 相关文件、加密密钥和初始密码；旧命名卷可暂时保留作为迁移前备份。
+
+### 域名与 HTTPS
+
+以上配置用于通过服务器 IP 直接访问 HTTP。通过宿主机 Nginx / Caddy 转发 HTTPS 时，将 `docker-compose.yml` 中该服务的端口与环境变量改为以下内容，替换为自己的域名，再执行 `docker compose up -d`：
+
+```yaml
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      APP_URL: "https://reset.example.com"
+      SECURE_COOKIE: "true"
+      TRUST_PROXY: "1"
+      NETWORK_FAMILY: "4"
+```
+
+`APP_URL` 必须和浏览器地址的协议、域名、端口一致，否则后台写入会被拒绝。`TRUST_PROXY=1` 仅适用于应用前只有一层可信反向代理的部署。Caddy 示例：
 
 ```caddyfile
 reset.example.com {
     reverse_proxy 127.0.0.1:3000
 }
 ```
+
+### 从源码构建
+
+在源码仓库目录执行以下命令，使用原有 `compose.yaml`。该方式默认只映射 `127.0.0.1:3000`，数据保存在 Compose 的 `reset_data` 命名卷中，与上述目录挂载方式不同：
+
+```sh
+cp .env.example .env
+# 按需编辑 .env
+docker compose -f compose.yaml up -d --build
+docker compose -f compose.yaml logs -f reset
+```
+
+采用源码构建方式时，后续所有 Compose 命令都加上 `-f compose.yaml`。不要与上面的预构建镜像同时占用同一端口。
 
 ## 配置邮件提醒
 
@@ -87,11 +185,12 @@ SMTP 没有通用的恰好一次协议：如果进程在邮件已被 SMTP 接受
 
 ## 备份与运维
 
-本地备份整个 `data/`；Docker 备份整个 `reset_data` 卷。应先停止容器，或使用 SQLite 在线备份工具，以保持 WAL 文件的一致性。`secret.key` 必须和数据库一起备份，丢失后无法解密 SMTP 密码。不要把数据卷、`.env` 或初始密码提交到 Git。
+本地 Node.js 运行时备份整个 `data/`；使用 `docker-compose.yml` 部署时备份整个服务器目录 `/data/codex-reset`；从源码 `compose.yaml` 部署时备份其 `reset_data` 命名卷。应先停止容器，或使用 SQLite 在线备份工具，以保持 WAL 文件的一致性。`secret.key` 必须和数据库一起备份，丢失后无法解密 SMTP 密码。不要把数据目录、数据卷、`.env` 或初始密码提交到 Git。
 
 ```sh
+cd "$HOME/codex-reset" || exit 1
 docker compose stop
-# 备份 reset_data 数据卷
+# 备份整个 /data/codex-reset 目录，并保留文件权限
 docker compose start
 ```
 
@@ -102,7 +201,8 @@ docker compose start
 ```sh
 npm test
 npm run check
-docker compose config --quiet
+docker compose -f docker-compose.yml config --quiet
+docker compose -f compose.yaml config --quiet
 ```
 
 测试使用独立内存数据库和本机 SMTP 协议服务器，不会发送真实邮件。覆盖鉴权、同源与 CSRF、秘密掩码、历史基线、分页原子性、归档、公告类型、重复投递和失败重试。

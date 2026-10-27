@@ -1,0 +1,27 @@
+# Copy this file into its own directory on the server.
+# Linux host data: /data/codex-reset (must be writable by UID/GID 1000).
+# Create the directory and migrate existing volume data before starting.
+# Start: docker compose up -d
+# Stop/remove containers, retaining data: docker compose down
+name: codex-reset
+
+services:
+  reset:
+    image: pushytao/codex-reset-watch:1.0.0
+    restart: unless-stopped
+    init: true
+    ports:
+      - "3000:3000"
+    environment:
+      # Direct HTTP access via http://SERVER_IP:3000.
+      # Administrator password is generated automatically on first start.
+      SECURE_COOKIE: "false"
+      TRUST_PROXY: "0"
+      NETWORK_FAMILY: "4"
+    volumes:
+      - /data/codex-reset:/app/data
+    stop_grace_period: 90s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
