@@ -9,6 +9,14 @@ export function cleanText(value, max, label) {
   if (!text || text.length > max || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text)) throw new InputError(`${label}不能为空，且最多 ${max} 个字符`);
   return text;
 }
+export function validateSubscription(input) {
+  if(!input||Array.isArray(input)||typeof input.name!=='string'||typeof input.email!=='string')throw new InputError('请填写用户名和邮箱地址');
+  const name=cleanText(input.name,80,'用户名');
+  if(/[\r\n\t]/.test(name))throw new InputError('用户名不能包含换行或制表符');
+  const email=emailAddress(input.email);
+  if(input.consent!==true)throw new InputError('请确认使用自己的邮箱并同意接收重置提醒');
+  return {name,email};
+}
 export function validateEvent(input) {
   let url;
   try { url = new URL(input.source_url); } catch { throw new InputError('请填写 Tibo 的 X 原帖链接'); }

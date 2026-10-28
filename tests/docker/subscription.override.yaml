@@ -1,0 +1,4 @@
+services:
+  seed:
+    image: pushytao/codex-reset-watch:1.1.2
+    command: [node, /fixtures/scripts/notification-probe.js, seed-subscription]

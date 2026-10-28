@@ -30,21 +30,21 @@ cd "$HOME/codex-reset" || exit 1
 docker compose stop reset || exit 1
 umask 077
 mkdir -p backups || exit 1
-sudo tar -C /data -czf "backups/codex-reset-before-1.1.2-$(date +%Y%m%d-%H%M%S).tar.gz" codex-reset || exit 1
+sudo tar -C /data -czf "backups/codex-reset-before-1.2.0-$(date +%Y%m%d-%H%M%S).tar.gz" codex-reset || exit 1
 ```
 
-将镜像版本从 `1.0.0` 改为 `1.1.2`，拉取并启动：
+将镜像版本从 `1.0.0` 改为 `1.2.0`，拉取并启动：
 
 ```sh
 cd "$HOME/codex-reset" || exit 1
-sed -i 's#pushytao/codex-reset-watch:1.0.0#pushytao/codex-reset-watch:1.1.2#g' docker-compose.yml
+sed -i 's#pushytao/codex-reset-watch:1.0.0#pushytao/codex-reset-watch:1.2.0#g' docker-compose.yml
 docker compose config --quiet || exit 1
 docker compose pull reset || exit 1
 docker compose up -d --wait --wait-timeout 90 || exit 1
 docker compose ps
 ```
 
-如果原配置使用 `latest`，请直接把 `image` 改成 `pushytao/codex-reset-watch:1.1.2`，再执行拉取和启动命令。保持 `/data/codex-reset:/app/data` 挂载不变，新版会自动增补数据库字段，保留密码、SMTP 配置、收件邮箱、历史及已有投递记录。重新登录后台，确认通知和定时同步开关已开启。
+如果原配置使用 `latest`，请直接把 `image` 改成 `pushytao/codex-reset-watch:1.2.0`，再执行拉取和启动命令。保持 `/data/codex-reset:/app/data` 挂载不变，新版会自动增补数据库字段，保留密码、SMTP 配置、收件邮箱、历史及已有投递记录。重新登录后台，确认通知和定时同步开关已开启。
 
 ## 结果待确认
 
@@ -57,7 +57,7 @@ SMTP 回执可能在邮件已接收之后丢失。为避免同一封邮件再次
 在 Windows 工作区先按 `tests/docker/create-cert.ps1` 生成隔离 SMTP 测试证书，再执行：
 
 ```sh
-docker build -t pushytao/codex-reset-watch:1.1.2 .
+docker build -t pushytao/codex-reset-watch:1.2.0 .
 docker compose -f tests/docker/notifications.compose.yaml up -d --wait --wait-timeout 90
 docker compose -f tests/docker/notifications.compose.yaml exec -T reset node /fixtures/scripts/notification-probe.js announce
 docker compose -f tests/docker/notifications.compose.yaml up -d --force-recreate --no-deps --wait --wait-timeout 90 reset
@@ -73,7 +73,7 @@ docker compose -f tests/docker/notifications.compose.yaml down --volumes
 
 ### 从真实旧版数据验证升级
 
-在生成测试证书后，使用旧镜像 `1.1.1` 创建含遗留待发预告的独立测试卷，再由 `1.1.2` 应用启动并清理。验证脚本以只读方式检查数据库，避免由脚本自己触发清理：
+在生成测试证书后，使用旧镜像 `1.1.1` 创建含遗留待发预告的独立测试卷，再由 `1.2.0` 应用启动并清理。验证脚本以只读方式检查数据库，避免由脚本自己触发清理：
 
 ```sh
 docker compose -p codex-reset-legacy-check -f tests/docker/notifications.compose.yaml -f tests/docker/legacy-notifications.override.yaml up -d --wait --wait-timeout 90
@@ -81,4 +81,4 @@ docker compose -p codex-reset-legacy-check -f tests/docker/notifications.compose
 docker compose -p codex-reset-legacy-check -f tests/docker/notifications.compose.yaml -f tests/docker/legacy-notifications.override.yaml down --volumes
 ```
 
-两阶段提醒初版的实际结果及镜像标识见 [1.1.0 验收记录](release-1.1.0.md)，当前修订版见 [1.1.2 发布说明](release-1.1.2.md)。
+两阶段提醒初版的实际结果及镜像标识见 [1.1.0 验收记录](release-1.1.0.md)，当前版本见 [1.2.0 发布说明](release-1.2.0.md)。

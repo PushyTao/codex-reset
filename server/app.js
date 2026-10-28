@@ -8,19 +8,31 @@ import {settings,publicSettings} from './settings.js';
 const publicPath=fileURLToPath(new URL('../public/',import.meta.url));
 export function createApp({store,vault,password,appUrl='',secureCookie=false,trustProxy=0,sync,sendTest}){
   const app=express();app.disable('x-powered-by');app.set('trust proxy',trustProxy);
-  const verifyPassword=passwordVerifier(password);const attempts=new Map();
+  const verifyPassword=passwordVerifier(password);const attempts=new Map(),subscriptions=new Map();
   app.use((req,res,next)=>{
     res.set({'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'strict-origin-when-cross-origin','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"});
-    if(req.path.startsWith('/api/')||req.path.startsWith('/admin'))res.set('Cache-Control','no-store');
-    if(req.path.startsWith('/admin'))res.set('X-Robots-Tag','noindex, nofollow');
+    if(req.path.startsWith('/api/')||req.path.startsWith('/admin')||req.path.startsWith('/subscribe'))res.set('Cache-Control','no-store');
+    if(req.path.startsWith('/admin')||req.path.startsWith('/subscribe'))res.set('X-Robots-Tag','noindex, nofollow');
     next();
   });
   app.use(express.json({limit:'48kb'}));
   app.get('/healthz',(_req,res)=>res.json({ok:true}));
-  app.get('/robots.txt',(_req,res)=>res.type('text').send('User-agent: *\nDisallow: /admin\nDisallow: /api/admin/\n'));
+  app.get('/robots.txt',(_req,res)=>res.type('text').send('User-agent: *\nDisallow: /admin\nDisallow: /api/admin/\nDisallow: /subscribe\nDisallow: /api/subscribe\n'));
   app.get('/api/status',(_req,res)=>{
     const syncState=store.get('syncState',{});
     res.json({events:store.publicEvents(),source:'https://codex-resets.com/',scheduled:store.get('scheduled',null),sync:{lastSuccess:syncState.lastSuccess||null,lastAttempt:syncState.lastAttempt||null,healthy:!syncState.error,enabled:settings(store).syncEnabled},now:new Date().toISOString()});
+  });
+  app.post('/api/subscribe',(req,res)=>{
+    sameOrigin(req,appUrl);
+    const now=Date.now();for(const [key,value]of subscriptions)if(value.until<=now)subscriptions.delete(key);
+    const entry=subscriptions.get(req.ip)||{count:0,until:now+15*60000};
+    if(entry.count>=5||(!subscriptions.has(req.ip)&&subscriptions.size>=10000)){
+      res.set('Retry-After',String(Math.max(1,Math.ceil((entry.until-now)/1000))));
+      throw new InputError('提交过于频繁，请 15 分钟后再试',429);
+    }
+    entry.count++;subscriptions.set(req.ip,entry);
+    store.subscribe(req.body);
+    res.json({ok:true,message:'新邮箱已加入提醒名单；如果该邮箱已登记，会保留原有名称和启停设置。'});
   });
   app.post('/api/admin/login',(req,res)=>{
     sameOrigin(req,appUrl);
@@ -75,6 +87,7 @@ export function createApp({store,vault,password,appUrl='',secureCookie=false,tru
     await sendTest(recipient);res.json({ok:true,message:'SMTP 服务器已接受测试邮件，请检查收件箱'});
   });
   app.get(['/admin','/admin/'],(_req,res)=>res.sendFile(resolve(publicPath,'admin.html')));
+  app.get(['/subscribe','/subscribe/'],(_req,res)=>res.sendFile(resolve(publicPath,'subscribe.html')));
   app.use(express.static(publicPath,{dotfiles:'deny',index:'index.html',maxAge:0}));
   app.use((_req,res)=>res.status(404).type('text').send('页面不存在'));
   app.use((error,_req,res,_next)=>{

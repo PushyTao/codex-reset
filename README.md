@@ -7,6 +7,7 @@
 - 最新重置、90 天日历、真实统计、公告检索与类型筛选、北京 / 洛杉矶 / 本地时间。
 - `/admin` 管理后台，首页没有入口；密码登录、会话过期、请求来源与 CSRF 校验。
 - 收件邮箱添加与启停、SMTP 设置、指定收件人的测试邮件、发送日志。
+- `/subscribe` 自助订阅页，填写用户名与邮箱，首页没有入口；使用方式见 [订阅说明](docs/subscription.md)。
 - 默认每 5 分钟同步，首次导入历史不发邮件；后续新记录按邮箱去重提醒。
 - SQLite 数据持久化，SMTP 密码加密存储，Docker 单容器部署。
 
@@ -29,7 +30,7 @@ npm start
 
 ### 服务器首次部署：从创建目录到启动
 
-服务器需要安装 Docker Engine 和 Docker Compose 插件，并能执行 `docker compose version`。镜像支持 Linux amd64，来自 [pushytao/codex-reset-watch](https://hub.docker.com/r/pushytao/codex-reset-watch)，部署文件固定使用 `1.1.2`。已有 `1.1.0` / `1.1.1` 部署见 [1.1.2 升级说明](docs/release-1.1.2.md)，已有 `1.0.0` 部署请参照 [两阶段提醒与升级说明](docs/notifications.md)。
+服务器需要安装 Docker Engine 和 Docker Compose 插件，并能执行 `docker compose version`。镜像支持 Linux amd64，来自 [pushytao/codex-reset-watch](https://hub.docker.com/r/pushytao/codex-reset-watch)，部署文件固定使用 `1.2.0`。已有 `1.1.0` / `1.1.1` / `1.1.2` 部署见 [1.2.0 升级说明](docs/release-1.2.0.md)，已有 `1.0.0` 部署请参照 [两阶段提醒与升级说明](docs/notifications.md)。
 
 下面的命令可以在 Linux 服务器上直接执行：创建部署目录和数据目录，写入完整配置，拉取镜像并启动。无需安装 Node.js、下载源码或创建 `.env` 文件。已有旧数据时，先完成下方“从旧命名数据卷迁移”，再启动。
 
@@ -49,7 +50,7 @@ name: codex-reset
 
 services:
   reset:
-    image: pushytao/codex-reset-watch:1.1.2
+    image: pushytao/codex-reset-watch:1.2.0
     restart: unless-stopped
     init: true
     ports:
@@ -162,7 +163,7 @@ docker compose -f compose.yaml logs -f reset
 
 ### 可选：预构建镜像与命名数据卷
 
-如需使用 Docker 管理的命名卷，可在仓库目录使用 [compose.hub.yaml](compose.hub.yaml)。它使用相同的 1.1.2 镜像，默认只监听 `127.0.0.1:3000`；可按 `.env.example` 配置地址等参数：
+如需使用 Docker 管理的命名卷，可在仓库目录使用 [compose.hub.yaml](compose.hub.yaml)。它使用相同的 1.2.0 镜像，默认只监听 `127.0.0.1:3000`；可按 `.env.example` 配置地址等参数：
 
 ```sh
 docker compose -f compose.hub.yaml pull reset
@@ -221,6 +222,6 @@ docker compose -f compose.hub.yaml config --quiet
 
 测试使用独立内存数据库和本机 SMTP 协议服务器，不会发送真实邮件。覆盖鉴权、同源与 CSRF、秘密掩码、历史基线、分页原子性、归档、公告类型、重复投递和失败重试。
 
-Docker 实际构建、数据持久化、容器重建、SMTPS / STARTTLS、自动队列与故障重试已验收。通用步骤见 [Docker 验收说明](tests/docker/README.md)，两阶段提醒的复现步骤见 [通知验收说明](docs/notifications.md)。本次更新见 [1.1.2 发布说明](docs/release-1.1.2.md)，初版历史记录见 [1.0.0 验证记录](docs/verification.md)。邮件依赖锁定为 Nodemailer 10.2.1。
+Docker 实际构建、数据持久化、容器重建、SMTPS / STARTTLS、自动队列与故障重试已验收。通用步骤见 [Docker 验收说明](tests/docker/README.md)，两阶段提醒的复现步骤见 [通知验收说明](docs/notifications.md)。本次更新见 [1.2.0 发布说明](docs/release-1.2.0.md)，初版历史记录见 [1.0.0 验证记录](docs/verification.md)。邮件依赖锁定为 Nodemailer 10.2.1。
 
 主要代码：`server/source.js` 同步、`server/mail.js` 投递、`server/store.js` 存储、`server/app.js` HTTP 接口；前台和后台位于 `public/`。

@@ -1,5 +1,5 @@
 import {DatabaseSync} from 'node:sqlite';
-import {emailAddress, InputError} from './validation.js';
+import {emailAddress, InputError, validateSubscription} from './validation.js';
 
 function verifiedPostId(value){
   try{
@@ -127,6 +127,11 @@ export function createStore(path) {
       const email=emailAddress(input.email);const name=String(input.name||'').trim().slice(0,80);
       if(db.prepare('SELECT id FROM recipients WHERE email=?').get(email))throw new InputError('这个邮箱已经存在，可在列表中重新启用');
       return Number(db.prepare('INSERT INTO recipients(email,name) VALUES (?,?)').run(email,name).lastInsertRowid);
+    },
+    subscribe(input){
+      const {email,name}=validateSubscription(input);
+      // Anonymous submissions may add a recipient, never change an existing one.
+      db.prepare('INSERT INTO recipients(email,name) VALUES (?,?) ON CONFLICT(email) DO NOTHING').run(email,name);
     },
     updateRecipient(id,enabled){if(typeof enabled!=='boolean')throw new InputError('状态无效');if(!db.prepare('UPDATE recipients SET enabled=? WHERE id=?').run(enabled?1:0,id).changes)throw new InputError('邮箱不存在',404);},
     addEvent,

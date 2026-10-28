@@ -39,12 +39,16 @@ async function adminState(){
 }
 try{
   assert.equal(process.getuid(),1000);
-  if(stage==='seed'||stage==='seed-legacy'){
+  if(stage==='seed'||stage==='seed-legacy'||stage==='seed-subscription'){
     assert.equal(store.get('qaNotifications'),null,'Use a fresh isolated validation volume');
     const key=randomBytes(32);writeFileSync('/app/data/secret.key',key,{mode:0o600,flag:'wx'});
     const vault=createVault(key);
     store.set('config',{syncEnabled:false,notificationsEnabled:true,pollMinutes:5,smtp:{host:'smtp',port:2465,secure:true,user:'qa-user',password:vault.encrypt('qa-password'),from:'sender@example.test',fromName:'QA Reset'}});
-    store.addRecipient({email:'reader@example.test'});
+    if(stage==='seed-subscription'){
+      assert.equal(JSON.parse(readFileSync('/app/package.json','utf8')).version,'1.1.2');
+      const previous=store.addRecipient({email:'existing@example.test',name:'Existing recipient'});
+      store.updateRecipient(previous,false);
+    }else store.addRecipient({email:'reader@example.test'});
     store.ingest([normalizeReset(historical)],false);store.set('qaNotifications',{seeded:true});
     if(stage==='seed-legacy'){
       assert.equal(JSON.parse(readFileSync('/app/package.json','utf8')).version,'1.1.1');
@@ -105,7 +109,7 @@ try{
       assert.equal(readFileSync('/app/data/secret.key').toString('hex'),JSON.parse(db.prepare("SELECT value FROM settings WHERE key='qaKeyFingerprint'").get().value));
     }finally{db.close();}
     const state=await adminState();assert.equal(state.settings.smtp.hasPassword,true);assert.equal(state.recipients.length,1);
-    console.log('PASS: 1.1.2 startup cancelled the legacy pending preview before delivery; prior sent record, key and SMTP configuration persisted; inbox empty.');
+    console.log('PASS: current version startup cancelled the legacy pending preview before delivery; prior sent record, key and SMTP configuration persisted; inbox empty.');
   }else if(stage==='retry'){
     await fetch('http://smtp:8025/reject-next',{method:'POST'});
     const next={...announcement,id:'2115273253711409209',announced_at:'2026-10-28T05:00:00.000Z',source:{...announcement.source,url:'https://x.com/thsottiaux/status/2115273253711409209'}};

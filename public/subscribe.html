@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#f3f0e8">
+  <title>订阅邮件提醒 — Codex Reset</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/subscribe.css">
+  <script src="/subscribe.js" defer></script>
+</head>
+<body class="subscribe-page">
+  <div class="subscribe-shell">
+    <header class="subscribe-header">
+      <a class="brand" href="/" aria-label="Codex Reset 首页"><span class="brand-mark" aria-hidden="true">✳</span><span>RESET<span class="brand-sub">/ CODEX</span></span></a>
+      <span class="subscribe-edition">MAIL / 邮件订阅</span>
+    </header>
+    <main class="subscribe-main">
+      <section class="subscribe-intro" aria-labelledby="subscribe-title">
+        <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span> STAY IN THE LOOP</div>
+        <h1 id="subscribe-title">重置消息，<br><span class="green">送到你的邮箱。</span></h1>
+        <p class="subscribe-description">留一个邮箱，把等待交给我们。<br>有新的 Codex 额度重置消息时，及时收到提醒。</p>
+        <ol class="subscribe-steps">
+          <li><span class="subscribe-step-number">01</span><div><h2>预告时，先知道</h2><p>公布重置计划后，收到一封预告提醒。</p></div><span class="subscribe-step-symbol" aria-hidden="true">↗</span></li>
+          <li><span class="subscribe-step-number">02</span><div><h2>正式重置，再提醒</h2><p>确认重置后，再收到一封正式提醒。</p></div><span class="subscribe-step-symbol" aria-hidden="true">✓</span></li>
+        </ol>
+        <p class="subscribe-footnote"><span aria-hidden="true">✳</span> 同一阶段不重复提醒，也不会补发历史公告。</p>
+      </section>
+      <section class="subscribe-card" aria-labelledby="form-title">
+        <div class="subscribe-card-heading"><span class="section-number">YOUR INBOX, YOUR UPDATES</span><span class="subscribe-envelope" aria-hidden="true">↗</span></div>
+        <h2 id="form-title">订阅重置提醒</h2>
+        <p class="subscribe-card-description">填写你的用户名和常用邮箱。</p>
+        <form id="subscribe-form" class="admin-form">
+          <div class="form-field"><label for="subscribe-name">用户名</label><input id="subscribe-name" name="name" type="text" autocomplete="nickname" maxlength="80" placeholder="怎么称呼你？" required aria-describedby="name-help"><small id="name-help">仅用于识别订阅，无需注册账号。</small></div>
+          <div class="form-field"><label for="subscribe-email">邮箱地址</label><input id="subscribe-email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="you@example.com" required></div>
+          <label class="check-field subscribe-consent" for="subscribe-consent"><input id="subscribe-consent" name="consent" type="checkbox" required><span>这是我自己的邮箱，我同意接收 Codex 额度重置提醒。</span></label>
+          <button id="subscribe-submit" class="button button-dark" type="submit"><span>订阅邮件提醒</span><span aria-hidden="true">↗</span></button>
+          <div id="subscribe-feedback" class="feedback error" role="alert" hidden></div>
+        </form>
+        <div id="subscribe-success" class="subscribe-success" role="status" tabindex="-1" hidden>
+          <span class="subscribe-success-mark" aria-hidden="true">✓</span>
+          <h3>订阅信息已提交</h3>
+          <p id="subscribe-success-message"></p>
+          <p class="subscribe-success-note">邮件提醒将在站点通知服务启用时发送。需要修改信息或取消订阅，请联系站点管理员。</p>
+        </div>
+        <noscript><p class="feedback error">请启用浏览器 JavaScript 后提交订阅。</p></noscript>
+        <p class="subscribe-privacy">用户名与邮箱仅供站点管理员管理提醒，<br>不会在首页公开。</p>
+      </section>
+    </main>
+    <footer class="subscribe-footer"><span>CODEX RESET / 不错过下一次重置</span><span>修改信息或取消订阅，请联系站点管理员。</span></footer>
+  </div>
+</body>
+</html>
