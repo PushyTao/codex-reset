@@ -1,0 +1,5 @@
+# Layer over notifications.compose.yaml to reproduce a real 1.1.1 data upgrade.
+services:
+  seed:
+    image: pushytao/codex-reset-watch:1.1.1
+    command: [node, /fixtures/scripts/notification-probe.js, seed-legacy]

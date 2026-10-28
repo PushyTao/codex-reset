@@ -2,7 +2,7 @@
 # 需要 /data/codex-reset 目录挂载时，请使用 docker-compose.yml。
 services:
   reset:
-    image: pushytao/codex-reset-watch:1.1.1
+    image: pushytao/codex-reset-watch:1.1.2
     restart: unless-stopped
     init: true
     ports:

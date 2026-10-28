@@ -37,6 +37,7 @@ export function createStore(path) {
   const scheduledBySource=db.prepare("SELECT * FROM events WHERE source_id=? AND phase='scheduled'");
   const scheduledByKind=db.prepare("SELECT * FROM events WHERE kind=? AND phase='scheduled'");
   const scheduledKey=event=>`scheduled:${event.kind}:${event.source_id}`;
+  const latestResetTime=kind=>byKind.all(kind).reduce((time,row)=>row.occurred_at>time?row.occurred_at:time,'');
   function findScheduled(event){
     const exact=scheduledBySource.get(scheduledKey(event));
     if(exact)return exact;
@@ -46,17 +47,32 @@ export function createStore(path) {
     }
     const postId=verifiedPostId(event.source_url);
     const matches=postId?scheduledByKind.all(event.kind).filter(row=>verifiedPostId(row.source_url)===postId):[];
-    return matches.length===1?matches[0]:null;
+    if(matches.length===1)return matches[0];
+    // Multiple posts may describe one planned reset. Only group a known ETA
+    // within the same reset cycle, so a new post after completion stays new.
+    if(event.announced_at&&event.occurred_at){
+      const completedAt=latestResetTime(event.kind);
+      return scheduledByKind.all(event.kind).find(row=>row.scheduled_for===event.occurred_at&&row.occurred_at>=completedAt&&row.status!=='superseded')||null;
+    }
+    return null;
   }
   function hasCompleted(event){
     for(const source_id of sourceAliases(event.source_id))if(bySource.get(source_id)?.kind===event.kind)return true;
     const postId=verifiedPostId(event.source_url);
-    return !!postId&&byKind.all(event.kind).some(row=>verifiedPostId(row.source_url)===postId);
+    return !!postId&&byKind.all(event.kind).some(row=>verifiedPostId(row.source_url)===postId)
+      ||!!event.announced_at&&latestResetTime(event.kind)>event.announced_at;
   }
   function cancelScheduled(id,reason){
     db.prepare("UPDATE deliveries SET status='cancelled',error=? WHERE event_id=? AND status IN ('pending','failed')").run(reason,id);
   }
   function clearCompletedSchedule(){
+    for(const row of db.prepare("SELECT * FROM events WHERE phase='scheduled' AND status='scheduled'").all()){
+      const event={...row,source_id:row.source_id.replace(/^scheduled:(regular|banked):/,''),announced_at:row.occurred_at};
+      if(hasCompleted(event)){
+        db.prepare("UPDATE events SET status='superseded' WHERE id=?").run(row.id);
+        cancelScheduled(row.id,'已有同类型的正式重置，取消旧预告');
+      }
+    }
     const active=get('scheduled');
     if(active&&hasCompleted(active))set('scheduled',null);
   }
@@ -99,6 +115,9 @@ export function createStore(path) {
     clearCompletedSchedule();
     return {added:1,queued};
   }
+  // Reconcile persisted tasks before the startup mail worker can claim them.
+  db.exec('BEGIN IMMEDIATE');
+  try{clearCompletedSchedule();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');throw error;}
   return {
     db,get,set,close:()=>db.close(),
     publicEvents:()=>db.prepare("SELECT id,source_id,source_url,occurred_at,text,summary,kind,origin,source_type FROM events WHERE status='published' AND phase='reset' ORDER BY occurred_at DESC LIMIT 2000").all(),

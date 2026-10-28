@@ -264,3 +264,96 @@ test('old databases retain accepted deliveries when notification phases are adde
     assert.equal(old.sent_at,'2026-10-26T07:01:00Z');assert.equal(store.publicEvents().length,1);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+const originalAnnouncement={...announcement,id:'2115273064481218829',announced_at:'2026-10-28T02:42:53.000Z',text:'Day 23/ Today is a reset.',source:{...announcement.source,url:'https://x.com/thsottiaux/status/2115273064481218829'}};
+const completionPost={...completed,id:'2115297093879472332',announced_at:'2026-10-28T04:18:22.000Z',text:'It has landed',source:{...completed.source,url:'https://x.com/thsottiaux/status/2115297093879472332'}};
+
+test('an older announcement under another post ID stays silent after completion and restart',async()=>{
+  const directory=mkdtempSync(join(tmpdir(),'reset-stale-announcement-')),path=join(directory,'reset.sqlite');
+  let store=createStore(path);
+  try{
+    setup(store);const api=upstream(),messages=[];let service=services(store,api,messages);
+    await service.sync();await service.mail.drain();assert.equal(messages.length,1);
+    api.records=[completionPost,history];api.latest=completionPost;api.scheduled=null;
+    await service.sync();await service.mail.drain();assert.equal(messages.length,2);
+    store.close();store=createStore(path);service=services(store,api,messages);
+    api.scheduled=originalAnnouncement;
+    await service.sync();await service.mail.drain();await service.sync();await service.mail.drain();
+    assert.equal(messages.length,2,'Do not mail the earlier original post after the completion notice');
+    assert.deepEqual(messages.map(m=>m.headers['X-Codex-Reset-Phase']),['scheduled','reset']);
+    assert.equal(store.get('scheduled'),null);
+  }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('different announcement posts for the same type and ETA share one notification',async()=>{
+  const store=createStore(':memory:');
+  try{
+    setup(store);const api=upstream(),messages=[];const service=services(store,api,messages);
+    await service.sync();await service.mail.drain();
+    api.scheduled=originalAnnouncement;await service.sync();await service.mail.drain();
+    api.scheduled=announcement;await service.sync();await service.mail.drain();
+    assert.equal(messages.length,1);
+    assert.equal(store.deliveries().length,1);
+    assert.equal(store.get('scheduled').source_id,announcement.id);
+  }finally{store.close();}
+});
+
+test('startup cancels a legacy queued preview when a newer reset is already stored',async()=>{
+  const directory=mkdtempSync(join(tmpdir(),'reset-legacy-preview-')),path=join(directory,'reset.sqlite');
+  let store=createStore(path);
+  try{
+    setup(store);const api=upstream(),messages=[];
+    await services(store,api,messages).sync();
+    // A previous release could store an unrelated completion ID without cancelling this preview.
+    const event=normalizeReset(completionPost);
+    store.db.prepare('INSERT INTO events(source_id,source_url,occurred_at,text,summary,kind,origin,source_type) VALUES(?,?,?,?,?,?,?,?)').run(event.source_id,event.source_url,event.occurred_at,event.text,event.summary,event.kind,event.origin,event.source_type);
+    store.close();store=createStore(path);
+    await services(store,api,messages).mail.drain();
+    assert.equal(messages.length,0);
+    assert.equal(store.deliveries()[0].status,'cancelled');
+    assert.equal(store.get('scheduled'),null);
+  }finally{store.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test('a fresh announcement after completion is not merged into the old ETA cycle',async()=>{
+  const store=createStore(':memory:');
+  try{
+    setup(store);const api=upstream(),messages=[];const service=services(store,api,messages);
+    await service.sync();await service.mail.drain();
+    api.records=[completionPost,history];api.latest=completionPost;api.scheduled=null;
+    await service.sync();await service.mail.drain();
+    api.scheduled={...originalAnnouncement,announced_at:'2026-10-28T05:00:00.000Z'};
+    await service.sync();await service.mail.drain();
+    assert.equal(messages.length,3);assert.equal(messages[2].headers['X-Codex-Reset-Phase'],'scheduled');
+    assert.equal(store.get('scheduled').source_id,originalAnnouncement.id);
+  }finally{store.close();}
+});
+
+test('a regular completion does not cancel a pending banked announcement',async()=>{
+  const store=createStore(':memory:');
+  try{
+    setup(store);const api=upstream(),messages=[];const service=services(store,api,messages);
+    api.scheduled={...announcement,reset_type:'banked'};
+    await service.sync();
+    api.records=[completionPost,history];api.latest=completionPost;
+    await service.sync();await service.mail.drain();
+    assert.equal(messages.length,2);
+    assert.equal(messages[0].headers['X-Codex-Reset-Phase'],'scheduled');
+    assert.equal(messages[0].headers['X-Codex-Reset-Type'],'banked');
+    assert.equal(store.get('scheduled').kind,'banked');
+  }finally{store.close();}
+});
+
+test('distinct dates and unknown ETAs are not grouped as one planned reset',async()=>{
+  for(const eta of ['2026-10-29T07:00:00.000Z',null]){
+    const store=createStore(':memory:');
+    try{
+      setup(store);const api=upstream(),messages=[];const service=services(store,api,messages);
+      if(eta===null)api.scheduled={...announcement,scheduled_for:null};
+      await service.sync();await service.mail.drain();
+      api.scheduled={...originalAnnouncement,scheduled_for:eta};
+      await service.sync();await service.mail.drain();
+      assert.equal(messages.length,2);assert.equal(store.deliveries().length,2);
+    }finally{store.close();}
+  }
+});

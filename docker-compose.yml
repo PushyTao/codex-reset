@@ -7,7 +7,7 @@ name: codex-reset
 
 services:
   reset:
-    image: pushytao/codex-reset-watch:1.1.1
+    image: pushytao/codex-reset-watch:1.1.2
     restart: unless-stopped
     init: true
     ports:
