@@ -104,6 +104,17 @@ test('generic homepages and mismatched numeric timestamps do not merge unrelated
   }finally{store.close();}
 });
 
+test('a numeric status ID reconciles an existing observed ID without a supporting URL',()=>{
+  const store=core.createStore(':memory:');
+  try{
+    store.addRecipient({email:'reader@example.com'});store.set('sourceInitialized',true);
+    const observed={...event,source_id:'observed-'+event.source_id,source_url:'https://codex-resets.com/',source_type:'observed'};
+    assert.equal(store.ingest([observed],true).queued,1);
+    assert.equal(store.ingest([event],true).added,0);
+    assert.equal(store.publicEvents().length,1);assert.equal(store.deliveries().length,1);
+  }finally{store.close();}
+});
+
 test('email normalization rejects headers, malformed addresses and duplicates',()=>{
   assert.equal(typeof validation.emailAddress,'function');
   assert.equal(validation.emailAddress(' Reader@Example.com '),'reader@example.com');

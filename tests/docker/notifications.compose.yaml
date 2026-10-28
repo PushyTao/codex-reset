@@ -1,0 +1,52 @@
+name: codex-reset-notifications
+
+services:
+  seed:
+    image: pushytao/codex-reset-watch:1.1.0
+    command: [node, /fixtures/scripts/notification-probe.js, seed]
+    volumes:
+      - notification_data:/app/data
+      - .:/fixtures/scripts:ro
+  reset:
+    image: pushytao/codex-reset-watch:1.1.0
+    init: true
+    environment:
+      APP_URL: http://127.0.0.1:3000
+      ADMIN_PASSWORD: notification-test-only-password
+      NODE_EXTRA_CA_CERTS: /fixtures/certs/ca.pem
+    volumes:
+      - notification_data:/app/data
+      - .:/fixtures/scripts:ro
+      - ../../artifacts/docker-validation/certs:/fixtures/certs:ro
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      smtp:
+        condition: service_healthy
+    stop_grace_period: 90s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  smtp:
+    image: pushytao/codex-reset-watch:1.1.0
+    command: [node, /fixtures/scripts/smtp-server.js]
+    volumes:
+      - .:/fixtures/scripts:ro
+      - ../../artifacts/docker-validation/certs:/fixtures/certs:ro
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8025/messages').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  notification_data:
+
+networks:
+  default:
+    internal: true

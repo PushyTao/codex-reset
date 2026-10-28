@@ -36,6 +36,45 @@ export function normalizeReset(item){
 }
 export function createSyncService(store,{requestJson:fetchJson=requestJson}={}){
   let running=null;
+  async function history(){
+    const items=[];let cursor=null;const seen=new Set();let complete=false;
+    for(let page=0;page<20;page++){
+      const url=new URL('/api/v1/resets',SOURCE);url.searchParams.set('limit','100');
+      if(cursor)url.searchParams.set('cursor',cursor);
+      const payload=await fetchJson(url.toString());
+      if(!Array.isArray(payload.data)||typeof payload.pagination?.has_more!=='boolean')throw new Error('数据源记录格式已改变');
+      if(payload.data.some(item=>item.status==='scheduled'))throw new Error('数据源历史包含未完成的预告');
+      items.push(...payload.data.map(normalizeReset));
+      if(!payload.pagination.has_more){complete=true;break;}
+      cursor=payload.pagination.next_cursor;
+      if(typeof cursor!=='string'||!cursor||cursor.length>1024||seen.has(cursor))throw new Error('数据源分页游标无效');
+      seen.add(cursor);
+    }
+    if(!complete||!items.length)throw new Error('数据源未返回完整的历史记录');
+    return items;
+  }
+  async function status(){
+    const payload=await fetchJson(SOURCE+'/api/v1/status');
+    if(!payload.data||!Object.hasOwn(payload.data,'scheduled_reset'))throw new Error('数据源状态格式已改变');
+    let scheduled=null,latest=null;
+    if(payload.data.latest_reset){
+      if(payload.data.latest_reset.status==='scheduled')throw new Error('数据源最新重置尚未完成');
+      latest=normalizeReset(payload.data.latest_reset);
+    }
+    if(payload.data.scheduled_reset){
+      const raw=payload.data.scheduled_reset;
+      if(raw.status!=='scheduled')throw new Error('Invalid scheduled status');
+      const normalized=normalizeReset(raw);
+      const at=raw.scheduled_for?new Date(raw.scheduled_for):null;
+      if(at&&!Number.isFinite(at.getTime()))throw new Error('Invalid scheduled date');
+      scheduled={...normalized,occurred_at:at?.toISOString()||null,announced_at:normalized.occurred_at};
+    }
+    return {scheduled,latest};
+  }
+  const requestWhenAllowed=(until,request)=>until>Date.now()
+    ?Promise.reject(Object.assign(new Error('数据源请求受限，请稍后再同步'),{retryAt:until}))
+    :request();
+  const nextAllowed=result=>result.status==='fulfilled'?0:result.reason.retryAt||(result.reason.retryAfter?Date.now()+result.reason.retryAfter*1000:0);
   return function sync(){
     if(running)return running;
     const previous=store.get('syncState',{});
@@ -43,37 +82,30 @@ export function createSyncService(store,{requestJson:fetchJson=requestJson}={}){
     running=(async()=>{
       const lastAttempt=new Date().toISOString();store.set('syncState',{...previous,lastAttempt});
       try{
-        const items=[];let cursor=null;const seen=new Set();let complete=false;
-        for(let page=0;page<20;page++){
-          const url=new URL('/api/v1/resets',SOURCE);url.searchParams.set('limit','100');
-          if(cursor)url.searchParams.set('cursor',cursor);
-          const payload=await fetchJson(url.toString());
-          if(!Array.isArray(payload.data)||typeof payload.pagination?.has_more!=='boolean')throw new Error('数据源记录格式已改变');
-          items.push(...payload.data.map(normalizeReset));
-          if(!payload.pagination.has_more){complete=true;break;}
-          cursor=payload.pagination.next_cursor;
-          if(typeof cursor!=='string'||!cursor||cursor.length>1024||seen.has(cursor))throw new Error('数据源分页游标无效');
-          seen.add(cursor);
+        const initialized=store.get('sourceInitialized',false),statusInitialized=store.get('statusInitialized',false),notify=settings(store).notificationsEnabled;
+        // Either endpoint can fail without discarding useful data from the other.
+        const [historyResult,statusResult]=await Promise.allSettled([
+          requestWhenAllowed(previous.historyNextAllowed,history),
+          requestWhenAllowed(previous.statusNextAllowed,status)
+        ]);
+        const result={added:0,queued:0,baseline:!initialized};
+        const collect=part=>{result.added+=part.added;result.queued+=part.queued;};
+        if(historyResult.status==='fulfilled')collect(store.ingest(historyResult.value,notify));
+        if(statusResult.status==='fulfilled'){
+          const {latest,scheduled}=statusResult.value;
+          if(latest)collect(store.ingest([latest],notify,{partial:true,baseline:!initialized&&!statusInitialized}));
+          result.queued+=store.updateScheduled(scheduled,notify);
         }
-        if(!complete||!items.length)throw new Error('数据源未返回完整的历史记录');
-        const status=await fetchJson(SOURCE+'/api/v1/status');
-        if(!status.data||!Object.hasOwn(status.data,'scheduled_reset'))throw new Error('数据源状态格式已改变');
-        let scheduled=null;
-        if(status.data.scheduled_reset){
-          const raw=status.data.scheduled_reset;
-          if(raw.status!=='scheduled')throw new Error('Invalid scheduled status');
-          const normalized=normalizeReset(raw);
-          const at=raw.scheduled_for?new Date(raw.scheduled_for):null;
-          if(at&&!Number.isFinite(at.getTime()))throw new Error('Invalid scheduled date');
-          scheduled={...normalized,occurred_at:at?.toISOString()||null,announced_at:normalized.occurred_at};
-        }
-        const result=store.ingest(items,settings(store).notificationsEnabled);
-        store.set('scheduled',scheduled);
-        store.set('syncState',{lastAttempt,lastSuccess:new Date().toISOString(),error:null,count:items.length,nextAllowed:0,...result});
-        return {...result,count:items.length};
+        const failures=[historyResult,statusResult].filter(r=>r.status==='rejected');
+        const historyNextAllowed=nextAllowed(historyResult),statusNextAllowed=nextAllowed(statusResult);
+        const message=failures.map(r=>/数据源/.test(r.reason.message)?r.reason.message:'连接数据源失败，已有记录已保留').join('；')||null;
+        const count=historyResult.status==='fulfilled'?historyResult.value.length:store.publicEvents().length;
+        store.set('syncState',{...previous,lastAttempt,lastSuccess:failures.length?previous.lastSuccess||null:new Date().toISOString(),error:message,count,historyNextAllowed,statusNextAllowed,nextAllowed:Math.min(historyNextAllowed,statusNextAllowed),...result});
+        if(failures.length)throw new InputError(message,502);
+        return {...result,count};
       }catch(error){
         const message=/数据源/.test(error.message)?error.message:'连接数据源失败，已有记录已保留';
-        store.set('syncState',{...previous,lastAttempt,error:message,nextAllowed:error.retryAfter?Date.now()+error.retryAfter*1000:0});
+        store.set('syncState',{...store.get('syncState',previous),lastAttempt,error:message});
         throw new InputError(message,502);
       }
     })().finally(()=>{running=null;});
