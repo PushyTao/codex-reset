@@ -26,14 +26,16 @@
           <div class="hero-caption"><span class="tiny-cross" aria-hidden="true">+</span> MORE TOKENS. MORE POSSIBILITIES.</div>
         </div>
         <div class="status-stack">
-          <article class="reset-card" aria-labelledby="latest-heading">
-            <div class="card-kicker"><span><span class="status-square"></span> 最近一次重置</span><span id="latest-kind" class="tag tag-light">正在连接</span></div>
-            <h2 id="latest-heading"><span id="latest-relative">读取记录中</span><span class="reset-card-arrow" aria-hidden="true">↗</span></h2>
-            <p id="latest-exact" class="mono status-exact">等待数据源响应</p>
-            <div class="card-divider"></div>
-            <div class="reset-card-bottom"><span id="latest-source">公开社区数据</span><a id="latest-link" href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">查看来源 ↗</a></div>
+          <article class="status-card status-card-latest" aria-labelledby="latest-heading">
+            <div class="status-card-header"><h2 id="latest-heading"><span class="status-indicator" aria-hidden="true"></span>最近一次重置</h2><span id="latest-kind" class="status-badge">正在连接</span></div>
+            <div class="status-card-body"><p id="latest-relative" class="status-value">读取记录中</p><p id="latest-exact" class="status-detail">等待数据源响应</p></div>
+            <div class="status-card-footer"><span id="latest-source">公开社区数据</span><a id="latest-link" href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">查看来源 <span aria-hidden="true">↗</span></a></div>
           </article>
-          <article class="next-card"><div><span class="small-label">下一次重置</span><strong>好事发生前，保持创造。</strong><p id="next-reset">重置没有固定周期，暂不提供时间预测。</p></div><span class="orbital" aria-hidden="true">↻</span></article>
+          <article class="status-card status-card-next" aria-labelledby="next-heading">
+            <div class="status-card-header"><h2 id="next-heading"><span class="status-indicator" aria-hidden="true"></span>下一次重置</h2><span id="next-kind" class="status-badge">正在连接</span></div>
+            <div class="status-card-body"><p id="next-reset" class="status-value">读取预告中</p><p id="next-exact" class="status-detail">等待数据源响应</p></div>
+            <div class="status-card-footer"><span id="next-source">公开社区数据</span><a id="next-link" href="https://codex-resets.com/" target="_blank" rel="noopener noreferrer">关注动态 <span aria-hidden="true">↗</span></a></div>
+          </article>
         </div>
       </section>
       <div class="source-strip" role="status"><div><span class="live-dot" id="source-dot"></span><span id="source-status">正在读取公开数据…</span></div><button class="text-button" id="refresh-button" type="button">刷新数据 <span aria-hidden="true">↻</span></button></div>

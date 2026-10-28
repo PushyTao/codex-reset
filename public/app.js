@@ -33,17 +33,31 @@
   }
   function renderLatest() {
     const scheduled = state.scheduled;
-    $('next-reset').textContent = scheduled ? scheduled.occurred_at && Number.isFinite(new Date(scheduled.occurred_at).getTime()) ? `来源公布：${exact(scheduled.occurred_at)}。实际额度以账户为准。` : '已公告，具体时间待确认' : '重置没有固定周期，暂不提供时间预测。';
+    const scheduledTime = scheduled?.occurred_at ? new Date(scheduled.occurred_at) : null;
+    const hasTime = scheduledTime && Number.isFinite(scheduledTime.getTime());
+    $('next-link').href = safeLink(scheduled?.source_url);
+    $('next-link').firstChild.textContent = scheduled ? '查看预告 ' : '关注动态 ';
+    if (scheduled) {
+      $('next-reset').textContent = hasTime ? scheduledTime <= Date.now() ? '等待确认' : formatter({month:'long',day:'numeric'}).format(scheduledTime) : '时间待定';
+      $('next-exact').textContent = hasTime ? `预计 ${exact(scheduledTime)} · ${zone()}` : '已公布重置计划，具体时间待确认。';
+      $('next-kind').textContent = '已有预告';
+      $('next-source').textContent = `${scheduled.kind === 'banked' ? '备用额度' : '常规重置'} · 尚未确认执行`;
+    } else {
+      $('next-reset').textContent = state.loaded ? '等待下一次' : state.failure ? '连接暂不可用' : '读取预告中';
+      $('next-exact').textContent = state.loaded ? '重置没有固定周期，暂不预测时间。' : state.failure ? '请点击下方「刷新数据」重试' : '等待数据源响应';
+      $('next-kind').textContent = state.loaded ? '尚无预告' : state.failure ? '连接失败' : '正在连接';
+      $('next-source').textContent = state.loaded ? '持续关注公开重置动态' : '公开社区数据';
+    }
     const latest = state.events[0];
     if (!latest) {
       $('latest-relative').textContent = state.loaded ? '等待首次记录' : state.failure ? '连接暂不可用' : '读取记录中';
       $('latest-exact').textContent = state.loaded ? '尚无公开重置记录可供展示' : state.failure ? '请点击下方「刷新数据」重试' : '等待数据源响应';
       $('latest-kind').textContent = state.loaded ? '等待观测' : state.failure ? '连接失败' : '正在连接';
-      $('latest-source').textContent = '公开社区数据';return;
+      $('latest-source').textContent = '公开社区数据';$('latest-link').href = 'https://codex-resets.com/';return;
     }
     $('latest-relative').textContent = relative(latest.occurred_at);
     $('latest-exact').textContent = `${exact(latest.occurred_at)} · ${zone()}`;
-    $('latest-kind').textContent = latest.kind === 'banked' ? '备用额度 / BANKED' : '常规重置 / REGULAR';
+    $('latest-kind').textContent = latest.kind === 'banked' ? '备用额度' : '常规重置';
     $('latest-source').textContent = latest.source_type === 'x_post' ? 'Tibo · X 原帖记录' : latest.origin === 'manual' ? '管理员收录 · X 原帖' : 'Codex Resets · 社区观测';
     $('latest-link').href = safeLink(latest.source_url);
   }

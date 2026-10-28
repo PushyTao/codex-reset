@@ -1,6 +1,6 @@
 # 邮箱配置指南
 
-适用于 Codex Reset `1.1.0`，按当前 `/admin` 后台界面编写。服务商说明核对日期：2026-10-27。先完成 [Docker 部署](../README.md)，再按本文配置邮件。
+适用于 Codex Reset `1.1.x`，按当前 `/admin` 后台界面编写。服务商说明核对日期：2026-10-27。先完成 [Docker 部署](../README.md)，再按本文配置邮件。
 
 SMTP 参数在后台保存，下一次发送就会使用新配置，无需重启容器。当前版本不读取 `SMTP_HOST`、`SMTP_PASSWORD` 等环境变量，不需要把邮箱账号或授权码写进 `docker-compose.yml`。
 

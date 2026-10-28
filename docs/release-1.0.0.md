@@ -2,7 +2,7 @@
 
 发布日期：2026-10-26（北京时间）。发布顺序：构建 → 完整测试及容器验收 → 推送 → 远端摘要核对。
 
-这是 1.0.0 的历史发布记录。`latest` 已更新到 1.1.0，当前版本与摘要见 [1.1.0 验收记录](release-1.1.0.md)；下列两个标签一致的描述仅对应 1.0.0 发布时。
+这是 1.0.0 的历史发布记录。`latest` 会随新版本更新，当前版本见 [README](../README.md)；下列两个标签一致的描述仅对应 1.0.0 发布时。
 
 - 仓库：https://hub.docker.com/r/pushytao/codex-reset-watch
 - 标签：`pushytao/codex-reset-watch:1.0.0`、`pushytao/codex-reset-watch:latest`
@@ -20,4 +20,4 @@
 docker pull pushytao/codex-reset-watch:1.0.0
 ```
 
-当前仓库的 `compose.hub.yaml` 已更新为 1.1.0，不再部署此历史版本。新部署、服务器目录挂载、域名、HTTPS 和管理员密码配置见 [README](../README.md)；已有 1.0.0 部署见 [升级说明](notifications.md)。
+当前仓库的 `compose.hub.yaml` 使用新版镜像，不再部署此历史版本。新部署、服务器目录挂载、域名、HTTPS 和管理员密码配置见 [README](../README.md)；已有 1.0.0 部署见 [升级说明](notifications.md)。

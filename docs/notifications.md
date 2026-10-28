@@ -28,21 +28,21 @@ cd "$HOME/codex-reset" || exit 1
 docker compose stop reset || exit 1
 umask 077
 mkdir -p backups || exit 1
-sudo tar -C /data -czf "backups/codex-reset-before-1.1.0-$(date +%Y%m%d-%H%M%S).tar.gz" codex-reset || exit 1
+sudo tar -C /data -czf "backups/codex-reset-before-1.1.1-$(date +%Y%m%d-%H%M%S).tar.gz" codex-reset || exit 1
 ```
 
-将镜像版本从 `1.0.0` 改为 `1.1.0`，拉取并启动：
+将镜像版本从 `1.0.0` 改为 `1.1.1`，拉取并启动：
 
 ```sh
 cd "$HOME/codex-reset" || exit 1
-sed -i 's#pushytao/codex-reset-watch:1.0.0#pushytao/codex-reset-watch:1.1.0#g' docker-compose.yml
+sed -i 's#pushytao/codex-reset-watch:1.0.0#pushytao/codex-reset-watch:1.1.1#g' docker-compose.yml
 docker compose config --quiet || exit 1
 docker compose pull reset || exit 1
 docker compose up -d --wait --wait-timeout 90 || exit 1
 docker compose ps
 ```
 
-如果原配置使用 `latest`，请直接把 `image` 改成 `pushytao/codex-reset-watch:1.1.0`，再执行拉取和启动命令。保持 `/data/codex-reset:/app/data` 挂载不变，新版会自动增补数据库字段，保留密码、SMTP 配置、收件邮箱、历史及已有投递记录。重新登录后台，确认通知和定时同步开关已开启。
+如果原配置使用 `latest`，请直接把 `image` 改成 `pushytao/codex-reset-watch:1.1.1`，再执行拉取和启动命令。保持 `/data/codex-reset:/app/data` 挂载不变，新版会自动增补数据库字段，保留密码、SMTP 配置、收件邮箱、历史及已有投递记录。重新登录后台，确认通知和定时同步开关已开启。
 
 ## 结果待确认
 
@@ -55,7 +55,7 @@ SMTP 回执可能在邮件已接收之后丢失。为避免同一封邮件再次
 在 Windows 工作区先按 `tests/docker/create-cert.ps1` 生成隔离 SMTP 测试证书，再执行：
 
 ```sh
-docker build -t pushytao/codex-reset-watch:1.1.0 .
+docker build -t pushytao/codex-reset-watch:1.1.1 .
 docker compose -f tests/docker/notifications.compose.yaml up -d --wait --wait-timeout 90
 docker compose -f tests/docker/notifications.compose.yaml exec -T reset node /fixtures/scripts/notification-probe.js announce
 docker compose -f tests/docker/notifications.compose.yaml up -d --force-recreate --no-deps --wait --wait-timeout 90 reset
@@ -69,4 +69,4 @@ docker compose -f tests/docker/notifications.compose.yaml down --volumes
 
 该验收使用独立数据卷与内部网络，关闭真实源定时访问，邮件只发送到不会转发邮件的模拟 SMTP 服务。覆盖实际应用调度器、SMTPS、STARTTLS、两个通知阶段、两次容器重建、来源别名去重及一次真实 451 拒收退避。
 
-本次实际结果及镜像标识见 [1.1.0 验收记录](release-1.1.0.md)。
+两阶段提醒初版的实际结果及镜像标识见 [1.1.0 验收记录](release-1.1.0.md)，当前 UI 修订版见 [1.1.1 发布说明](release-1.1.1.md)。
