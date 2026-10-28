@@ -2,6 +2,8 @@
 
 这套验收使用生产 Dockerfile 和应用进程，另起隔离 SMTP 容器。数据卷、邮件和证书只用于测试，不使用本地 `data/`，不向真实邮箱发信。
 
+1.1.0 的预告、正式重置、持久化去重和重试专项验收使用另一套独立夹具，命令见 [两阶段提醒说明](../../docs/notifications.md)。本页覆盖通用部署、后台与 SMTP 验收。
+
 ## 准备（当前 Windows 工作区）
 
 ```powershell
@@ -18,12 +20,14 @@ docker compose --env-file tests/docker/validation.env -p codex-reset-validation 
 docker exec codex-reset-validation-reset-1 node /fixtures/scripts/probe.js initial
 docker compose --env-file tests/docker/validation.env -p codex-reset-validation -f compose.yaml -f tests/docker/compose.override.yaml up -d --force-recreate --no-deps --wait --wait-timeout 90 reset
 docker exec codex-reset-validation-reset-1 node /fixtures/scripts/probe.js restarted
+docker exec codex-reset-validation-reset-1 node /fixtures/scripts/probe.js verify-restarted
 docker exec codex-reset-validation-reset-1 node /fixtures/scripts/probe.js negative
 docker exec codex-reset-validation-reset-1 node /fixtures/scripts/probe.js live
 ```
 
 - `initial`：非 root、密钥权限、页面与 API、登录与 CSRF、设置保密、SMTPS 测试邮件、真实定时队列、重复公告拒绝。
 - `restarted`：容器替换后的数据卷、凭据与密钥、旧会话失效、已发送邮件不重发、STARTTLS 认证与投递。
+- `verify-restarted`：在 `restarted` 完成后、`negative` 之前可重复核对持久化与邮件结果；不再次发信。
 - `negative`：明文 SMTP 被拒绝，模拟 451 临时失败，等待真实的一分钟退避和下一次调度，验证只有一次成功投递。
 - `live`：额外验证真实公开 API，同步成功必须返回非空记录；上游或当前网络超时会明确失败，不能视为应用功能通过的替代证据。
 

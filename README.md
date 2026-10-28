@@ -123,6 +123,8 @@ sudo chmod 700 /data/codex-reset
 
 随后执行本节的部署命令，用原来的后台密码登录，核对历史、邮箱和 SMTP 设置。完整复制目录才能保留 SQLite 相关文件、加密密钥和初始密码；旧命名卷可暂时保留作为迁移前备份。
 
+更多目录挂载与迁移说明见 [服务器数据目录指南](docs/bind-mount.md)；遇到 `EACCES` 或容器持续重启，见 [常见问题](docs/faq.md)。
+
 ### 域名与 HTTPS
 
 以上配置用于通过服务器 IP 直接访问 HTTP。通过宿主机 Nginx / Caddy 转发 HTTPS 时，将 `docker-compose.yml` 中该服务的端口与环境变量改为以下内容，替换为自己的域名，再执行 `docker compose up -d`：
@@ -157,6 +159,17 @@ docker compose -f compose.yaml logs -f reset
 ```
 
 采用源码构建方式时，后续所有 Compose 命令都加上 `-f compose.yaml`。不要与上面的预构建镜像同时占用同一端口。
+
+### 可选：预构建镜像与命名数据卷
+
+如需使用 Docker 管理的命名卷，可在仓库目录使用 [compose.hub.yaml](compose.hub.yaml)。它使用相同的 1.1.0 镜像，默认只监听 `127.0.0.1:3000`；可按 `.env.example` 配置地址等参数：
+
+```sh
+docker compose -f compose.hub.yaml pull reset
+docker compose -f compose.hub.yaml up -d
+```
+
+后续命令都需加上 `-f compose.hub.yaml`，并在同一个目录执行以保持 Compose 项目名一致。数据保存在项目的 `reset_data` 命名卷中，不会自动读取或迁移 `/data/codex-reset`；请按现有数据位置选择部署方式。停止时使用 `docker compose -f compose.hub.yaml down`，保留数据时不要加 `--volumes`。
 
 ## 配置邮件提醒
 
@@ -202,10 +215,11 @@ npm test
 npm run check
 docker compose -f docker-compose.yml config --quiet
 docker compose -f compose.yaml config --quiet
+docker compose -f compose.hub.yaml config --quiet
 ```
 
 测试使用独立内存数据库和本机 SMTP 协议服务器，不会发送真实邮件。覆盖鉴权、同源与 CSRF、秘密掩码、历史基线、分页原子性、归档、公告类型、重复投递和失败重试。
 
-Docker 实际构建、数据持久化、容器重建、SMTPS / STARTTLS、自动队列与故障重试已验收。可复现步骤见 [Docker 验收说明](tests/docker/README.md)，结果与外部数据源连接限制见 [验证记录](docs/verification.md)。邮件依赖锁定为 Nodemailer 10.2.1。
+Docker 实际构建、数据持久化、容器重建、SMTPS / STARTTLS、自动队列与故障重试已验收。通用步骤见 [Docker 验收说明](tests/docker/README.md)，两阶段提醒的复现步骤见 [通知验收说明](docs/notifications.md)。当前结果见 [1.1.0 验收记录](docs/release-1.1.0.md)，初版历史记录见 [1.0.0 验证记录](docs/verification.md)。邮件依赖锁定为 Nodemailer 10.2.1。
 
 主要代码：`server/source.js` 同步、`server/mail.js` 投递、`server/store.js` 存储、`server/app.js` HTTP 接口；前台和后台位于 `public/`。

@@ -63,6 +63,19 @@ if(mode==='initial'){
   await ok('/api/admin/test-email',{recipientId:snapshot.recipientId});
   let inbox=await messages();assert.equal(inbox.length,snapshot.messageCount+1);assert.ok(inbox.at(-1).encrypted&&inbox.at(-1).authenticated);
   console.log('PASS restarted: SQLite, secret key, password, recipient/settings persistence, session invalidation, no duplicate sends, STARTTLS authenticated delivery.');
+}else if(mode==='verify-restarted'){
+  // Read-only postconditions, safe to repeat after the STARTTLS test has completed.
+  const snapshot=JSON.parse(readFileSync('/app/data/qa-snapshot.json','utf8'));
+  cookie=snapshot.cookie;csrf=snapshot.csrf;assert.equal((await request('/api/admin/state')).status,401);
+  assert.equal(hashFile('/app/data/secret.key'),snapshot.secret);assert.equal(hashFile('/app/data/admin-password.txt'),snapshot.password);
+  await login();const state=await ok('/api/admin/state');
+  assert.equal(state.events.length,snapshot.eventCount);assert.ok(state.recipients.some(r=>r.id===snapshot.recipientId));
+  assert.equal(state.settings.smtp.hasPassword,true);assert.equal(state.settings.smtp.port,2587);
+  assert.equal(state.settings.smtp.secure,false);
+  const inbox=await messages();assert.equal(inbox.length,snapshot.messageCount+1);
+  assert.ok(inbox.every(message=>message.encrypted&&message.authenticated));
+  assert.equal(state.deliveries.filter(delivery=>delivery.status==='sent').length,1);
+  console.log('PASS verify-restarted: persisted data/keys, invalidated old session, STARTTLS configuration, three authenticated TLS messages and no duplicate queue delivery.');
 }else if(mode==='negative'){
   const snapshot=JSON.parse(readFileSync('/app/data/qa-snapshot.json','utf8'));await login();
   await config(2525,false);let before=(await messages()).length;

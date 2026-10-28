@@ -1,0 +1,24 @@
+# 预构建镜像 + Docker 命名数据卷；使用 docker compose -f compose.hub.yaml ...
+# 需要 /data/codex-reset 目录挂载时，请使用 docker-compose.yml。
+services:
+  reset:
+    image: pushytao/codex-reset-watch:1.1.0
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      APP_URL: ${APP_URL:-}
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      NETWORK_FAMILY: ${NETWORK_FAMILY:-4}
+    volumes:
+      - reset_data:/app/data
+    stop_grace_period: 90s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  reset_data:
